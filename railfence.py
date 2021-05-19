@@ -1,6 +1,5 @@
 def encrypt(plain_text):
     n = len(plain_text)
-    # cipher_text = [0] * n
     cipher_text = ''
 
     '''
@@ -11,10 +10,8 @@ def encrypt(plain_text):
     k = (n // 2) + (n % 2)
     for i in range(n):
         if i < k:
-            # cipher_text[i] = (plain_text[i*2])
             cipher_text += (plain_text[i*2])
         else:
-            # cipher_text[i] = (plain_text[i-(k-1)])
             cipher_text += (plain_text[i-(k-1)])
             k -= 1
     return cipher_text
@@ -33,17 +30,14 @@ def decrypt(cipher_text):
     k = (n // 2) + (n % 2)
     for i in range(n):
         if i % 2 == 0:
-            # decrypted_text[i] = (cipher_text[i//2])
             decrypted_text += (cipher_text[i//2])
         else:
-            # decrypted_text[i] = (cipher_text[i+(k-1)])
             decrypted_text += (cipher_text[i+(k-1)])
             k -= 1
     return decrypted_text
 
 
 if __name__ == '__main__':
-    # plain_text = 'meet me at the park'.replace(' ', '')
     plain_text = input('Plaintext: ')
 
     print('Encrypting...')
