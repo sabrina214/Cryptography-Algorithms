@@ -1,11 +1,47 @@
+import sys, random
+
+
 class RSA:
   def __init__(self):
     self.n = None
     self.private_key = None
     self.public_key = None
 
-  def get_primes(self, n, order):
-    return 564832025563754167280587259313178386020778350817804920704065099304575495039724503624187344166437202923233411620253906005478409511046084001754181991031066080555702138451933263915528206766999518789810513812021761776355509186810891259466586737626850825233063522246756651904286056527518901457671281079931, 707967648968945567316960339042421462324427012654410215247994086702931151017037438716076615467478332465819579985675737312802259043023044729197953438307305585737340703078952140310806700528609903560189850886262110587862292951033818516860622735943009021692312379979914290612511159882217065056471771861487
+  def miller_rabin_pass(self, a, k, d, n):
+    # modular exponentiation
+    b = pow(a, d, n)
+    # if b == 1: 
+    #   +1 or -1 do not certainly assure composite but probably prime but better not conclude so early 
+    #   return True 
+    for _ in range(k-1):
+      if b == n - 1: return True
+      b = pow(b, 2, n)
+    return b == n - 1
+
+  def miller_rabin(self, n):
+    # find the largest value k such that 2**k divides n-1 
+    b = n - 1
+    k = 0
+    while b % 2 == 0:
+      b >>= 1
+      k += 1
+    
+    # repeat miller rabin test to reduce the probability error exponentially
+    for _ in range(20):
+      # select any number a; 1 < a < n
+      a = random.randrange(2, n)
+      if not self.miller_rabin_pass(a, k, b, n):
+        return False
+    return True
+
+  def generate_prime(self, nbits):
+    while True:
+      p = random.getrandbits(nbits)
+      # msb is set to ensure that our random number is nbits
+      # lsb is set to rule out the even numbers from the test 
+      p |= 2 ** nbits | 1
+      if self.miller_rabin(p):
+        return p
     
   def extended_gcd(self, a, b):
     # r = a - q * b
@@ -26,9 +62,12 @@ class RSA:
       if gcd == 1:
         return i, inv_e
 
-  def generate_key_pair(self):
-    # generate two large primes(154 digits)
-    p, q = self.get_primes(2, 154)
+  def generate_key_pair(self, nbits):
+    # generate two large primes
+    print('Generating Key Pair...')
+    
+    p = self.generate_prime(nbits)
+    q = self.generate_prime(nbits)
     self.n = p * q
 
     # Euler totient function
@@ -39,10 +78,10 @@ class RSA:
 
     # generate private key
     self.private_key = inv_e % phi_n
+    print('Key pair generated successfully\n')
 
   def encrypt(self, plain_text):
     print('Encryting using (e={}, n={})'.format(self.public_key, self.n), '\n')
-
     encrypted_bytes = [pow(ord(c), self.public_key, self.n) for c in plain_text]
     return encrypted_bytes
 
