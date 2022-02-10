@@ -1,7 +1,9 @@
 class PRESENT:
-  def __init__(self, key):
+  def __init__(self, plaintext, key):
+    self.plaintext = self.str_to_int(plaintext)
     self.key_reg = self.str_to_int(key)
     self.NUM_ROUNDS = 32
+    self.BLOCK_SIZE = 64
     self.SBOX = [
       0xC,
       0x5,
@@ -20,7 +22,16 @@ class PRESENT:
       0x1,
       0x2
     ]
+    self.SBOX_INV = [self.SBOX.index(i) for i in range(16)]
+    self.PBOX = [
+       0, 16, 32, 48,  1, 17, 33, 49,  2, 18, 34, 50,  3, 19, 35, 51,
+       4, 20, 36, 52,  5, 21, 37, 53,  6, 22, 38, 54,  7, 23, 39, 55,
+       8, 24, 40, 56,  9, 25, 41, 57, 10, 26, 42, 58, 11, 27, 43, 59,
+      12, 28, 44, 60, 13, 29, 45, 61, 14, 30, 46, 62, 15, 31, 47, 63
+    ]
+    self.PBOX_INV = [self.PBOX.index(i) for i in range(64)]
     self.round_keys = self.generate_round_keys(self.key_reg)
+    self.encrypted_text = None
 
   def generate_round_keys(self, key_reg):
     '''
@@ -40,22 +51,65 @@ class PRESENT:
 
       # 2. leftmost 4 bits of key_reg are passed thru sbox
       rightmost_76_bits = key_reg & 0xffff_ffff_ffff_ffff_fff
-      key_reg = (self.substitute(self.SBOX, key_reg >> 76) << 76) | rightmost_76_bits
+      key_reg = (self.SBOX[key_reg >> 76] << 76) | rightmost_76_bits
 
       # 3. XOR round_counter with bits 19, 18, 17, 16, 15 of key_reg
-      key_reg ^= (round_counter << 15)
+      key_reg ^= ((round_counter + 1) << 15)
     return round_keys
 
-  def str_to_int(self, key):
+  def str_to_int(self, word):
     '''
-    Return integer representation of key
+    Return integer value of 64 bit ascii word
     '''
-    int_key = 0
-    k = 72
-    for byte in key:
-      int_key |= ord(byte) << k
-      k -= 8
-    return int_key
+    int_word = 0
+    # k = 72
+    for byte in word:
+      int_word <<= 8
+      int_word |= ord(byte)
+      # k -= 8
+    return int_word
   
-  def substitute(self, sbox, word):
-    return sbox[word]
+  def add_round_key(self, state, roundkey):
+    return state ^ roundkey
+
+  def substitute(self, state, inverse=False):
+    if inverse:
+      sbox = self.SBOX_INV
+    else:
+      sbox = self.SBOX
+ 
+    sboxed_state = 0
+    for offset in range( self.BLOCK_SIZE // 4 ):
+      sboxed_state |= (sbox[ (state >> (4*offset)) & 0xF ] << (4*offset))
+    return sboxed_state
+
+  def permute(self, state, inverse=False):
+    if inverse:
+      pbox = self.PBOX_INV
+    else:
+      pbox = self.PBOX
+
+    permuted_state = 0
+    for in_bit in range( self.BLOCK_SIZE ):
+      permuted_state |= ( ( (state >> in_bit) & 0b1 ) << pbox[in_bit] )
+    return permuted_state
+
+  def encrypt(self):
+    state = self.plaintext
+    for round in range( self.NUM_ROUNDS - 1 ):
+      state = self.add_round_key(state, self.round_keys[round])
+      state = self.substitute(state)
+      state = self.permute(state)
+    state = self.add_round_key(state, self.NUM_ROUNDS - 1 )  
+    self.encrypted_text = state
+    return state
+
+  def decrypt(self):
+    state = self.encrypted_text
+
+    state = self.add_round_key(state, 31)
+    for round in range( self.NUM_ROUNDS - 2, -1, -1 ):
+      state = self.permute(state, inverse=True)
+      state = self.substitute(state, inverse=True)
+      state = self.add_round_key(state, self.round_keys[round])
+    return state
