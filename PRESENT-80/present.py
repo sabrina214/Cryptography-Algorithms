@@ -4,24 +4,7 @@ class PRESENT:
     self.key_reg = self.str_to_int(key)
     self.NUM_ROUNDS = 32
     self.BLOCK_SIZE = 64
-    self.SBOX = [
-      0xC,
-      0x5,
-      0x6,
-      0xB,
-      0x9,
-      0x0,
-      0xA,
-      0xD,
-      0x3,
-      0xE,
-      0xF,
-      0x8,
-      0x4,
-      0x7,
-      0x1,
-      0x2
-    ]
+    self.SBOX = [ 0xC, 0x5, 0x6, 0xB, 0x9, 0x0, 0xA, 0xD, 0x3, 0xE, 0xF, 0x8, 0x4, 0x7, 0x1, 0x2 ]
     self.SBOX_INV = [self.SBOX.index(i) for i in range(16)]
     self.PBOX = [
        0, 16, 32, 48,  1, 17, 33, 49,  2, 18, 34, 50,  3, 19, 35, 51,
@@ -69,8 +52,8 @@ class PRESENT:
       # k -= 8
     return int_word
   
-  def add_round_key(self, state, roundkey):
-    return state ^ roundkey
+  def add_round_key(self, state, round):
+    return state ^ self.round_keys[round]
 
   def substitute(self, state, inverse=False):
     if inverse:
@@ -97,7 +80,7 @@ class PRESENT:
   def encrypt(self):
     state = self.plaintext
     for round in range( self.NUM_ROUNDS - 1 ):
-      state = self.add_round_key(state, self.round_keys[round])
+      state = self.add_round_key(state, round)
       state = self.substitute(state)
       state = self.permute(state)
     state = self.add_round_key(state, self.NUM_ROUNDS - 1 )  
@@ -107,9 +90,9 @@ class PRESENT:
   def decrypt(self):
     state = self.encrypted_text
 
-    state = self.add_round_key(state, 31)
-    for round in range( self.NUM_ROUNDS - 2, -1, -1 ):
+    for round in range( self.NUM_ROUNDS - 1, 0, -1 ):
+      state = self.add_round_key(state, round)
       state = self.permute(state, inverse=True)
       state = self.substitute(state, inverse=True)
-      state = self.add_round_key(state, self.round_keys[round])
+    state = self.add_round_key(state, 0 )  
     return state
